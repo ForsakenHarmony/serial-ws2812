@@ -1,0 +1,12 @@
+[package]
+name = "serial-ws2812"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serial-ws2812-shared = { path = "./shared" }
+
+anyhow = { version = "1.0.71", features = ["backtrace"]}
+serialport = "4.2.0"

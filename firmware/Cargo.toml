@@ -1,0 +1,78 @@
+[package]
+name = "serial-ws2812-firmware"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "serial-ws2812-firmware"
+test = false
+bench = false
+
+[patch.crates-io]
+#embassy-sync = { git = "https://github.com/embassy-rs/embassy" }
+#embassy-executor = { git = "https://github.com/embassy-rs/embassy" }
+#embassy-time = { git = "https://github.com/embassy-rs/embassy" }
+#embassy-stm32 = { git = "https://github.com/embassy-rs/embassy" }
+#embassy-usb = { git = "https://github.com/embassy-rs/embassy" }
+embassy-embedded-hal = { path = "../_pkg/embassy/embassy-embedded-hal" }
+embassy-executor = { path = "../_pkg/embassy/embassy-executor" }
+embassy-rp = { path = "../_pkg/embassy/embassy-rp" }
+embassy-sync = { path = "../_pkg/embassy/embassy-sync" }
+embassy-time = { path = "../_pkg/embassy/embassy-time" }
+embassy-usb = { path = "../_pkg/embassy/embassy-usb" }
+
+[dependencies]
+serial-ws2812-shared = { path = "../shared" }
+
+embassy-embedded-hal = { version = "0.1.0", features = ["defmt"] }
+embassy-executor = { version = "0.2.0", features = [
+  "arch-cortex-m",
+  "executor-thread",
+  "executor-interrupt",
+  "defmt",
+  "integrated-timers",
+  "nightly"
+] }
+embassy-rp = { version = "0.1.0", features = [
+  "defmt",
+  "unstable-traits",
+  "nightly",
+  "unstable-pac",
+  "time-driver",
+  "critical-section-impl",
+] }
+embassy-sync = { version = "0.2.0", features = ["defmt"] }
+embassy-time = { version = "0.1.0", features = [
+  "defmt",
+  "defmt-timestamp-uptime",
+  "nightly",
+  "unstable-traits",
+  #  "tick-hz-32_768",
+] }
+embassy-usb = { version = "0.1.0", features = ["defmt"] }
+
+defmt = "0.3"
+defmt-rtt = "0.4"
+fixed = "1.23.1"
+fixed-macro = "1.2"
+
+bytemuck = { version = "1.13.1", features = ["min_const_generics"] }
+cortex-m = { version = "0.7.6", features = ["critical-section"] }
+cortex-m-rt = "0.7.0"
+critical-section = "1.1.1"
+embedded-hal = "0.2.6"
+embedded-io = "0.4.0"
+futures = { version = "0.3.17", default-features = false, features = [
+  "async-await",
+] }
+nb = "1.0.0"
+panic-probe = { version = "0.3", features = ["print-defmt"] }
+smart-leds = "0.3.0"
+static_cell = "1.0"
+pio-proc = "0.2"
+pio = "0.2.1"
+
+# debug info is stored on the host
+[profile.release]
+debug = true
+
