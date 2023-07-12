@@ -41,7 +41,7 @@ impl SerialWs2812 {
 
 		for p in ports {
 			if let SerialPortType::UsbPort(usb) = p.port_type {
-				if usb.product == Some(DEVICE_PRODUCT_NAME.to_string()) {
+				if usb.product == Some(DEVICE_PRODUCT_NAME.to_string()) || usb.product == Some(DEVICE_PRODUCT_NAME.replace(" ", "_")) {
 					serial_device = Some(p.port_name);
 				}
 			}
