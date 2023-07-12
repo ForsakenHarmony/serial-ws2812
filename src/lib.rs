@@ -24,7 +24,7 @@ impl SerialWs2812 {
 	pub fn new(serial_device: String, config: Config) -> Result<Self> {
 		let baud_rate = 921_600;
 
-		let builder = serialport::new(&serial_device, baud_rate).timeout(Duration::from_millis(10));
+		let builder = serialport::new(&serial_device, baud_rate).timeout(Duration::from_millis(50));
 		let port = builder.open().context(format!("opening device \"{}\"", serial_device))?;
 
 		Ok(Self {
@@ -61,6 +61,7 @@ impl SerialWs2812 {
 		let mut counter = 0;
 
 		println!("trying to reset device to start of command");
+		self.port.set_timeout(Duration::from_millis(10))?;
 
 		loop {
 			let res = self.port.read(&mut buffer);
@@ -97,6 +98,7 @@ impl SerialWs2812 {
 			}
 		}
 
+		self.port.set_timeout(Duration::from_millis(50))?;
 		println!("reset successful");
 
 		Ok(())
