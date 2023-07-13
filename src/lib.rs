@@ -1,21 +1,31 @@
 use std::{
 	io,
 	io::{Read, Write},
+	time::{Duration, Instant},
 };
-use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Result};
-use serial_ws2812_shared::{DEVICE_ERROR_MESSAGE, DEVICE_INIT_MESSAGE, DEVICE_MESSAGE_TYPE_LEN, DEVICE_OK_MESSAGE, DEVICE_PARTIAL_MESSAGE, DEVICE_PRODUCT_NAME, SET_LEDS_MESSAGE, SET_STRIPS_MESSAGE, UPDATE_MESSAGE};
+use serial_ws2812_shared::{
+	DEVICE_ERROR_MESSAGE,
+	DEVICE_INIT_MESSAGE,
+	DEVICE_MESSAGE_TYPE_LEN,
+	DEVICE_OK_MESSAGE,
+	DEVICE_PARTIAL_MESSAGE,
+	DEVICE_PRODUCT_NAME,
+	SET_LEDS_MESSAGE,
+	SET_STRIPS_MESSAGE,
+	UPDATE_MESSAGE,
+};
 use serialport::{SerialPort, SerialPortType};
 
 pub struct Config {
 	pub strips: usize,
-	pub leds: usize,
+	pub leds:   usize,
 }
 
 pub struct SerialWs2812 {
 	config: Config,
-	port: Box<dyn SerialPort>,
+	port:   Box<dyn SerialPort>,
 
 	initialized: bool,
 }
@@ -25,7 +35,9 @@ impl SerialWs2812 {
 		let baud_rate = 921_600;
 
 		let builder = serialport::new(&serial_device, baud_rate).timeout(Duration::from_millis(50));
-		let port = builder.open().context(format!("opening device \"{}\"", serial_device))?;
+		let port = builder
+			.open()
+			.context(format!("opening device \"{}\"", serial_device))?;
 
 		Ok(Self {
 			config,
@@ -41,7 +53,9 @@ impl SerialWs2812 {
 
 		for p in ports {
 			if let SerialPortType::UsbPort(usb) = p.port_type {
-				if usb.product == Some(DEVICE_PRODUCT_NAME.to_string()) || usb.product == Some(DEVICE_PRODUCT_NAME.replace(" ", "_")) {
+				if usb.product == Some(DEVICE_PRODUCT_NAME.to_string())
+					|| usb.product == Some(DEVICE_PRODUCT_NAME.replace(" ", "_"))
+				{
 					serial_device = Some(p.port_name);
 				}
 			}
@@ -110,8 +124,8 @@ impl SerialWs2812 {
 			self.initialized = true;
 		}
 
-		self.send_command( SET_STRIPS_MESSAGE, &u32::to_le_bytes(self.config.strips as u32))?;
-		self.send_command( SET_LEDS_MESSAGE, &u32::to_le_bytes(self.config.leds as u32))?;
+		self.send_command(SET_STRIPS_MESSAGE, &u32::to_le_bytes(self.config.strips as u32))?;
+		self.send_command(SET_LEDS_MESSAGE, &u32::to_le_bytes(self.config.leds as u32))?;
 
 		Ok(())
 	}
@@ -160,9 +174,7 @@ impl SerialWs2812 {
 
 	fn serial_write(&mut self, buffer: &[u8]) -> Result<usize> {
 		match self.port.write_all(&buffer) {
-			Ok(_) => {
-				Ok(buffer.len())
-			}
+			Ok(_) => Ok(buffer.len()),
 			Err(ref e) if e.kind() == io::ErrorKind::TimedOut => {
 				println!("WARNING: serial timeout");
 				Ok(0)
