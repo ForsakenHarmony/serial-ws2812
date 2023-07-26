@@ -10,17 +10,12 @@ test = false
 bench = false
 
 [patch.crates-io]
-#embassy-sync = { git = "https://github.com/embassy-rs/embassy" }
-#embassy-executor = { git = "https://github.com/embassy-rs/embassy" }
-#embassy-time = { git = "https://github.com/embassy-rs/embassy" }
-#embassy-stm32 = { git = "https://github.com/embassy-rs/embassy" }
-#embassy-usb = { git = "https://github.com/embassy-rs/embassy" }
-embassy-embedded-hal = { path = "../_pkg/embassy/embassy-embedded-hal" }
-embassy-executor = { path = "../_pkg/embassy/embassy-executor" }
-embassy-rp = { path = "../_pkg/embassy/embassy-rp" }
-embassy-sync = { path = "../_pkg/embassy/embassy-sync" }
-embassy-time = { path = "../_pkg/embassy/embassy-time" }
-embassy-usb = { path = "../_pkg/embassy/embassy-usb" }
+embassy-embedded-hal = { git = "https://github.com/embassy-rs/embassy.git" }
+embassy-executor = { git = "https://github.com/embassy-rs/embassy.git" }
+embassy-rp = { git = "https://github.com/embassy-rs/embassy.git" }
+embassy-sync = { git = "https://github.com/embassy-rs/embassy.git" }
+embassy-time = { git = "https://github.com/embassy-rs/embassy.git" }
+embassy-usb = { git = "https://github.com/embassy-rs/embassy.git" }
 
 [dependencies]
 serial-ws2812-shared = { path = "../shared" }

@@ -26,16 +26,12 @@ pub async fn parallel_led_task(pio: PIO0, outputs: OutputPins) {
 	// allocate as u32 for correct byte alignment
 	let mut out_buf: [u8; MAX_BUFFER_SIZE] = cast([0u32; MAX_BUFFER_SIZE / 4]);
 
-	let mut last_write = Instant::now();
 	loop {
 		info!("ws2812: waiting for data pointer");
 		let (num_leds, leds) = DISPLAY_CHANNEL.recv().await;
 
-		let diff = Instant::now() - last_write;
-		if diff < Duration::from_micros(50) {
-			info!("ws2812: waiting for WS2812 reset time");
-			Timer::after(Duration::from_micros(50) - diff).await;
-		}
+		// make sure we wait long enough for the ws2812 chips to reset
+		Timer::after(Duration::from_micros(50)).await;
 
 		info!("ws2812: got data pointer, writing to GPIO");
 		write_data_direct(&mut sm, leds, num_leds, &mut out_buf).await;
@@ -43,10 +39,10 @@ pub async fn parallel_led_task(pio: PIO0, outputs: OutputPins) {
 		info!("ws2812: done writing to GPIO, returning data pointer");
 		RETURN_CHANNEL.send(leds).await;
 
+		// make sure we wait long enough for the ws2812 chips to reset
 		while !sm.tx().empty() {
 			Timer::after(Duration::from_micros(5)).await;
 		}
-		last_write = Instant::now();
 	}
 }
 
