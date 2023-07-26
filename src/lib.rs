@@ -17,6 +17,7 @@ use serial_ws2812_shared::{
 };
 use serialport::{SerialPort, SerialPortType};
 use thiserror::Error;
+use tracing::{debug, info};
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -99,7 +100,7 @@ impl SerialWs2812 {
 		let mut has_printed = 0;
 		let mut counter = 0;
 
-		println!("trying to reset device to start of command");
+		info!("trying to reset device to start of command");
 		self.port.set_timeout(Duration::from_millis(10))?;
 
 		loop {
@@ -108,7 +109,7 @@ impl SerialWs2812 {
 				Ok(n) => n,
 				Err(e) if e.kind() == io::ErrorKind::TimedOut => {
 					if has_printed == 0 {
-						println!("read timeout, writing null bytes to force a response");
+						info!("read timeout, writing null bytes to force a response");
 						has_printed += 1;
 					}
 
@@ -136,7 +137,7 @@ impl SerialWs2812 {
 		}
 
 		self.port.set_timeout(Duration::from_millis(50))?;
-		println!("reset successful");
+		info!("reset successful");
 
 		Ok(())
 	}

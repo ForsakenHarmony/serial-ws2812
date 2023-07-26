@@ -1,8 +1,10 @@
-use std::{f32::consts::PI, process, time::Instant};
+use std::{f32::consts::PI, time::Instant};
 
 use color_eyre::Result;
 use eyre::eyre;
+use tracing::info;
 use serial_ws2812::{Config, SerialWs2812};
+use tracing_subscriber::{prelude::*, EnvFilter, FmtSubscriber};
 
 pub const BYTES_PER_LED: usize = 3;
 pub const LEDS_PER_STRIP: usize = 512;
@@ -10,16 +12,31 @@ pub const STRIPS: usize = 8;
 
 pub const TRANSFER_BUFFER_SIZE: usize = BYTES_PER_LED * LEDS_PER_STRIP * STRIPS;
 
+fn install_tracing() {
+	let filter = EnvFilter::try_from_default_env()
+		.or_else(|_| EnvFilter::try_new("info"))
+		.unwrap();
+
+	FmtSubscriber::builder()
+		.compact()
+		.with_env_filter(filter)
+		.finish()
+		.init();
+}
+
 fn main() -> Result<()> {
 	color_eyre::install()?;
+	install_tracing();
 
 	let mut buffer = [0u8; TRANSFER_BUFFER_SIZE];
 
+	info!("finding device");
 	let mut controller = SerialWs2812::find(Config {
 		strips: STRIPS,
 		leds:   LEDS_PER_STRIP,
 	})?
 	.ok_or(eyre!("no device found"))?;
+	info!("configuring device");
 	controller.configure()?;
 
 	let mut frame_counter = 0;
