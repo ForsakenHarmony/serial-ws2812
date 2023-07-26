@@ -197,9 +197,9 @@ async fn read_serial<'d, T: Instance + 'd>(
 				info!("data pointer received");
 
 				let data = &buf[MESSAGE_TYPE_LEN..];
-				for i in 0..cfg.strips {
+				for (i, strip) in leds.iter_mut().enumerate().take(cfg.strips) {
 					let start_idx = i * cfg.leds * BYTES_PER_LED;
-					leds[i][..cfg.leds]
+					strip[..cfg.leds]
 						.copy_from_slice(cast_slice(&data[start_idx..start_idx + cfg.leds * BYTES_PER_LED]));
 				}
 

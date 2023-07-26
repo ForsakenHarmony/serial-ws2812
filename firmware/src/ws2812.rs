@@ -179,8 +179,8 @@ fn setup_ws2812_pio<'a>(pio: PIO0, outputs: OutputPins) -> StateMachine<'a, PIO0
 /// nth bit of each byte is combined into the nth byte
 #[inline]
 pub fn compress_byte(i: &mut [u8; 8], out: &mut [u8]) {
-	for bit in 0..8 {
-		out[bit] = compress_bit(&i);
+	for bit in out.iter_mut() {
+		*bit = compress_bit(i);
 
 		shift(i)
 	}

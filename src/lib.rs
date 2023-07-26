@@ -17,7 +17,7 @@ use serial_ws2812_shared::{
 };
 use serialport::{SerialPort, SerialPortType};
 use thiserror::Error;
-use tracing::{debug, info};
+use tracing::info;
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -59,7 +59,7 @@ impl SerialWs2812 {
 	pub fn new(serial_device: String, config: Config) -> Result<Self> {
 		let baud_rate = 921_600;
 
-		let builder = serialport::new(&serial_device, baud_rate).timeout(Duration::from_millis(50));
+		let builder = serialport::new(serial_device, baud_rate).timeout(Duration::from_millis(50));
 		let port = builder.open()?;
 
 		Ok(Self {
@@ -80,7 +80,7 @@ impl SerialWs2812 {
 		for p in ports {
 			if let SerialPortType::UsbPort(usb) = p.port_type {
 				if usb.product == Some(DEVICE_PRODUCT_NAME.to_string())
-					|| usb.product == Some(DEVICE_PRODUCT_NAME.replace(" ", "_"))
+					|| usb.product == Some(DEVICE_PRODUCT_NAME.replace(' ', "_"))
 				{
 					serial_device = Some(p.port_name);
 				}
@@ -213,7 +213,7 @@ impl SerialWs2812 {
 	}
 
 	fn serial_write(&mut self, buffer: &[u8]) -> Result<usize> {
-		match self.port.write_all(&buffer) {
+		match self.port.write_all(buffer) {
 			Ok(_) => Ok(buffer.len()),
 			// Err(ref e) if e.kind() == io::ErrorKind::TimedOut => {
 			// 	println!("WARNING: serial timeout");
@@ -223,9 +223,7 @@ impl SerialWs2812 {
 			// 	println!("WARNING: serial interrupted");
 			// 	Ok(0)
 			// }
-			Err(e) => {
-				return Err(e.into());
-			}
+			Err(e) => Err(e.into()),
 		}
 	}
 }
