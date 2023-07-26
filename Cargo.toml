@@ -1,9 +1,14 @@
 [package]
 name = "serial-ws2812"
 version = "0.0.1"
+authors = ["hrmny <github.leah@hrmny.sh>"]
+categories = ["rust-patterns"]
+description = "Control WS2812 via USB serial"
+documentation = "https://docs.rs/serial-ws2812"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+keywords = ["ws2812", "neopixel", "rp2040"]
+license = "MPL-2"
+repository = "https://github.com/ForsakenHarmony/serial-ws2812"
 
 [workspace]
 members = [
@@ -14,7 +19,7 @@ exclude = [
 ]
 
 [dependencies]
-serial-ws2812-shared = { path = "./shared" }
+serial-ws2812-shared = { version = "0.0.1", path = "./shared" }
 
 serialport = "4.2.1"
 thiserror = "1.0.44"
