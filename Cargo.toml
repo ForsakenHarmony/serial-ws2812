@@ -1,12 +1,24 @@
 [package]
 name = "serial-ws2812"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[workspace]
+members = [
+  "shared"
+]
+exclude = [
+  "firmware"
+]
+
 [dependencies]
 serial-ws2812-shared = { path = "./shared" }
 
-anyhow = { version = "1.0.71", features = ["backtrace"]}
 serialport = "4.2.0"
+thiserror = "1.0"
+
+[dev-dependencies]
+eyre = "0.6.2"
+color-eyre = "0.6.2"

@@ -18,8 +18,8 @@ use embassy_rp::{
 	config::Config,
 	multicore::{spawn_core1, Stack},
 	peripherals::{PIO0, USB},
+	pio::InterruptHandler as PioInterruptHandler,
 	usb::{Driver, InterruptHandler as UsbInterruptHandler},
-	pio::InterruptHandler as PioInterruptHandler
 };
 use serial_ws2812_shared::MAX_BUFFER_SIZE;
 use static_cell::StaticCell;

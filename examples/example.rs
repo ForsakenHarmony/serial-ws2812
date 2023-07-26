@@ -1,6 +1,7 @@
 use std::{f32::consts::PI, process, time::Instant};
 
-use anyhow::Result;
+use color_eyre::Result;
+use eyre::eyre;
 use serial_ws2812::{Config, SerialWs2812};
 
 pub const BYTES_PER_LED: usize = 3;
@@ -9,31 +10,22 @@ pub const STRIPS: usize = 8;
 
 pub const TRANSFER_BUFFER_SIZE: usize = BYTES_PER_LED * LEDS_PER_STRIP * STRIPS;
 
-// pub type LEDs = [[[u8; BYTES_PER_LED]; LEDS_PER_STRIP]; STRIPS];
-// pub type LedTransferBuffer = [u8; TRANSFER_BUFFER_SIZE];
+fn main() -> Result<()> {
+	color_eyre::install()?;
 
-fn main() {
-	if let Err(e) = run() {
-		println!("{:?}", e);
-
-		process::exit(1);
-	}
-}
-
-fn run() -> Result<()> {
 	let mut buffer = [0u8; TRANSFER_BUFFER_SIZE];
 
 	let mut controller = SerialWs2812::find(Config {
 		strips: STRIPS,
 		leds:   LEDS_PER_STRIP,
-	})?;
+	})?
+	.ok_or(eyre!("no device found"))?;
 	controller.configure()?;
 
-	let mut counter = 0;
 	let mut frame_counter = 0;
 	let mut timer = Timer::new();
 
-	let wave_speed = 0.25;
+	let wave_speed = 0.66;
 	let wave_frequency = 64.0;
 	let wave_influence = 1.0;
 
@@ -47,13 +39,19 @@ fn run() -> Result<()> {
 		hue_offset += hue_speed;
 
 		for led in 0..LEDS_PER_STRIP {
-			let progress: f32 = ((wave_offset + LEDS_PER_STRIP as f32 - led as f32 - 1.0) % wave_frequency) as f32
+			let progress: f32 = ((wave_offset + LEDS_PER_STRIP as f32 - led as f32 - 1.0)
+				% wave_frequency)
 				/ wave_frequency * 2.0
 				* PI;
 
 			let val_top = 1.0 - (wave_influence * ((progress.sin() + 1.0) * 0.5));
 
-			let value: [u8; 3] = HSV::new((hue_offset % 255.0) as u8, 255, ((1.0 - val_top) * 100.0) as u8).into();
+			let value: [u8; 3] = HSV::new(
+				(hue_offset % 255.0) as u8,
+				255,
+				((1.0 - val_top) * 100.0) as u8,
+			)
+			.into();
 
 			let led_byte_idx = led * BYTES_PER_LED;
 			for strip in 0..STRIPS {
@@ -62,8 +60,6 @@ fn run() -> Result<()> {
 				buffer[start_index..start_index + 3].copy_from_slice(&value);
 			}
 		}
-
-		counter = (counter + 1) % 10;
 
 		let (waiting_duration, duration) = controller.send_leds(&buffer)?;
 
@@ -140,8 +136,14 @@ impl Timer {
 		Stats {
 			dt:  diff_micros as f32 / 1000.0,
 			avg: avg as f32 / 1000.0,
-			min: moving_min_max.iter().fold(u128::MAX, |min, cur| min.min(*cur)) as f32 / 1000.0,
-			max: moving_min_max.iter().fold(u128::MIN, |max, cur| max.max(*cur)) as f32 / 1000.0,
+			min: moving_min_max
+				.iter()
+				.fold(u128::MAX, |min, cur| min.min(*cur)) as f32
+				/ 1000.0,
+			max: moving_min_max
+				.iter()
+				.fold(u128::MIN, |max, cur| max.max(*cur)) as f32
+				/ 1000.0,
 		}
 	}
 }
@@ -198,7 +200,11 @@ pub struct HSV {
 
 impl HSV {
 	pub fn new(hue: u8, saturation: u8, value: u8) -> Self {
-		HSV { hue, saturation, value }
+		HSV {
+			hue,
+			saturation,
+			value,
+		}
 	}
 
 	pub fn to_rgb(self) -> (u8, u8, u8) {

@@ -4,7 +4,6 @@ use std::{
 	time::{Duration, Instant},
 };
 
-use anyhow::{bail, Context, Result};
 use serial_ws2812_shared::{
 	DEVICE_ERROR_MESSAGE,
 	DEVICE_INIT_MESSAGE,
@@ -17,6 +16,30 @@ use serial_ws2812_shared::{
 	UPDATE_MESSAGE,
 };
 use serialport::{SerialPort, SerialPortType};
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum Error {
+	#[error("serial to ws2812 device was not found")]
+	DeviceNotFound,
+
+	#[error("unexpected response {received:?}, expected {expected:?}")]
+	UnexpectedResponse { expected: String, received: String },
+
+	#[error("received no response from the device")]
+	NoResponse,
+
+	#[error("unable to send full message to device")]
+	IncompleteWrite,
+
+	#[error("serial port error: {0}")]
+	SerialPort(#[from] serialport::Error),
+
+	#[error("I/O error: {0}")]
+	IO(#[from] io::Error),
+}
+
+pub type Result<T> = std::result::Result<T, Error>;
 
 pub struct Config {
 	pub strips: usize,
@@ -31,13 +54,12 @@ pub struct SerialWs2812 {
 }
 
 impl SerialWs2812 {
+	/// Create a new instance with the given serial device and config.
 	pub fn new(serial_device: String, config: Config) -> Result<Self> {
 		let baud_rate = 921_600;
 
 		let builder = serialport::new(&serial_device, baud_rate).timeout(Duration::from_millis(50));
-		let port = builder
-			.open()
-			.context(format!("opening device \"{}\"", serial_device))?;
+		let port = builder.open()?;
 
 		Ok(Self {
 			config,
@@ -47,8 +69,11 @@ impl SerialWs2812 {
 		})
 	}
 
-	pub fn find(config: Config) -> Result<Self> {
-		let ports = serialport::available_ports().expect("No ports found!");
+	/// Finds the first available serial device with product name "Serial WS2812" and creates a new instance of this controller struct from it.
+	///
+	/// If more than one device is connected the returned device will be the first the OS lists.
+	pub fn find(config: Config) -> Result<Option<Self>> {
+		let ports = serialport::available_ports()?;
 		let mut serial_device = None;
 
 		for p in ports {
@@ -62,10 +87,10 @@ impl SerialWs2812 {
 		}
 
 		let Some(serial_device) = serial_device else {
-			bail!("no serial to ws2812 device found");
+			return Ok(None);
 		};
 
-		Self::new(serial_device, config)
+		Ok(Some(Self::new(serial_device, config)?))
 	}
 
 	fn reset_to_command(&mut self) -> Result<()> {
@@ -96,10 +121,8 @@ impl SerialWs2812 {
 
 					continue;
 				}
-				Err(e) => bail!(e),
+				Err(e) => return Err(e.into()),
 			};
-
-			// println!("received: {:?}", String::from_utf8_lossy(&buffer[..read_bytes]));
 
 			// if we receive more than one byte we're probably in the branch that writes 32 bytes and need to repeat the process
 			if read_bytes > 1 {
@@ -118,18 +141,28 @@ impl SerialWs2812 {
 		Ok(())
 	}
 
+	/// Sets the configuration for the instance.
+	pub fn set_config(&mut self, config: Config) -> Result<()> {
+		self.config = config;
+		self.configure()
+	}
+
 	pub fn configure(&mut self) -> Result<()> {
 		if !self.initialized {
 			self.reset_to_command()?;
 			self.initialized = true;
 		}
 
-		self.send_command(SET_STRIPS_MESSAGE, &u32::to_le_bytes(self.config.strips as u32))?;
+		self.send_command(
+			SET_STRIPS_MESSAGE,
+			&u32::to_le_bytes(self.config.strips as u32),
+		)?;
 		self.send_command(SET_LEDS_MESSAGE, &u32::to_le_bytes(self.config.leds as u32))?;
 
 		Ok(())
 	}
 
+	/// Send all bytes to the microcontroller, the length must be the configured amount of leds * strips * 3.
 	pub fn send_leds(&mut self, leds: &[u8]) -> Result<(Duration, Duration)> {
 		if !self.initialized {
 			self.configure()?;
@@ -144,13 +177,16 @@ impl SerialWs2812 {
 		let command_start = Instant::now();
 
 		if self.serial_write(command)? != command.len() {
-			bail!("command message failed to write");
+			return Err(Error::IncompleteWrite);
 		}
 		if self.port.read(&mut output)? != 1 {
-			bail!("no response to command");
+			return Err(Error::NoResponse);
 		}
 		if &output != DEVICE_PARTIAL_MESSAGE {
-			bail!("unexpected response to command: {:?} (expected \"p\")", output)
+			return Err(Error::UnexpectedResponse {
+				expected: String::from_utf8_lossy(DEVICE_PARTIAL_MESSAGE).to_string(),
+				received: format!("{:?}", output),
+			});
 		}
 
 		let command_duration = Instant::now() - command_start;
@@ -158,13 +194,16 @@ impl SerialWs2812 {
 		let data_start = Instant::now();
 
 		if self.serial_write(data)? != data.len() {
-			bail!("command data message failed to write");
+			return Err(Error::IncompleteWrite);
 		}
 		if self.port.read(&mut output)? != 1 {
-			bail!("no response to command data");
+			return Err(Error::NoResponse);
 		}
 		if &output != DEVICE_OK_MESSAGE {
-			bail!("unexpected response to command data: {:?} (expected \"k\")", output)
+			return Err(Error::UnexpectedResponse {
+				expected: String::from_utf8_lossy(DEVICE_OK_MESSAGE).to_string(),
+				received: format!("{:?}", output),
+			});
 		}
 
 		let data_duration = Instant::now() - data_start;
@@ -175,16 +214,16 @@ impl SerialWs2812 {
 	fn serial_write(&mut self, buffer: &[u8]) -> Result<usize> {
 		match self.port.write_all(&buffer) {
 			Ok(_) => Ok(buffer.len()),
-			Err(ref e) if e.kind() == io::ErrorKind::TimedOut => {
-				println!("WARNING: serial timeout");
-				Ok(0)
-			}
-			Err(ref e) if e.kind() == io::ErrorKind::Interrupted => {
-				println!("WARNING: serial interrupted");
-				Ok(0)
-			}
+			// Err(ref e) if e.kind() == io::ErrorKind::TimedOut => {
+			// 	println!("WARNING: serial timeout");
+			// 	Ok(0)
+			// }
+			// Err(ref e) if e.kind() == io::ErrorKind::Interrupted => {
+			// 	println!("WARNING: serial interrupted");
+			// 	Ok(0)
+			// }
 			Err(e) => {
-				bail!(e);
+				return Err(e.into());
 			}
 		}
 	}

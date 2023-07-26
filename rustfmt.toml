@@ -1,6 +1,6 @@
 edition = "2018"
 hard_tabs = true
-max_width=120
+max_width = 100
 
 enum_discrim_align_threshold = 20
 struct_field_align_threshold = 20

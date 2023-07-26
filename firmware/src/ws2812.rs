@@ -39,10 +39,14 @@ pub async fn parallel_led_task(pio: PIO0, outputs: OutputPins) {
 
 		info!("ws2812: got data pointer, writing to GPIO");
 		write_data_direct(&mut sm, leds, num_leds, &mut out_buf).await;
-		last_write = Instant::now();
 
 		info!("ws2812: done writing to GPIO, returning data pointer");
 		RETURN_CHANNEL.send(leds).await;
+
+		while !sm.tx().empty() {
+			Timer::after(Duration::from_micros(5)).await;
+		}
+		last_write = Instant::now();
 	}
 }
 
@@ -173,6 +177,7 @@ fn setup_ws2812_pio<'a>(pio: PIO0, outputs: OutputPins) -> StateMachine<'a, PIO0
 
 /// splits bytes by bits
 /// nth bit of each byte is combined into the nth byte
+#[inline]
 pub fn compress_byte(i: &mut [u8; 8], out: &mut [u8]) {
 	for bit in 0..8 {
 		out[bit] = compress_bit(&i);

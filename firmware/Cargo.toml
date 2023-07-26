@@ -1,7 +1,8 @@
 [package]
 name = "serial-ws2812-firmware"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
+publish = false
 
 [[bin]]
 name = "serial-ws2812-firmware"
@@ -75,4 +76,4 @@ pio = "0.2.1"
 # debug info is stored on the host
 [profile.release]
 debug = true
-
+lto = true
