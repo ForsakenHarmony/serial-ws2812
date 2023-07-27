@@ -64,7 +64,7 @@ fn main() -> Result<()> {
 			let val_top = 1.0 - (wave_influence * ((progress.sin() + 1.0) * 0.5));
 
 			let value: [u8; 3] = HSV::new(
-				0, // (hue_offset % 255.0) as u8,
+				(hue_offset % 255.0) as u8,
 				255,
 				((1.0 - val_top) * 100.0) as u8,
 			)
