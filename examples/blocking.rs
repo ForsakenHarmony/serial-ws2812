@@ -2,8 +2,8 @@ use std::{f32::consts::PI, time::Instant};
 
 use color_eyre::Result;
 use eyre::eyre;
-use tracing::info;
 use serial_ws2812::{Config, SerialWs2812};
+use tracing::info;
 use tracing_subscriber::{prelude::*, EnvFilter, FmtSubscriber};
 
 pub const BYTES_PER_LED: usize = 3;

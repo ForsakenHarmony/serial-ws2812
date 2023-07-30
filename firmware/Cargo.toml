@@ -27,7 +27,7 @@ embassy-executor = { version = "0.2.0", features = [
   "executor-interrupt",
   "defmt",
   "integrated-timers",
-  "nightly"
+  "nightly",
 ] }
 embassy-rp = { version = "0.1.0", features = [
   "defmt",
@@ -63,10 +63,10 @@ futures = { version = "0.3.17", default-features = false, features = [
 ] }
 nb = "1.0.0"
 panic-probe = { version = "0.3", features = ["print-defmt"] }
+pio = "0.2.1"
+pio-proc = "0.2"
 smart-leds = "0.3.0"
 static_cell = "1.0"
-pio-proc = "0.2"
-pio = "0.2.1"
 
 # debug info is stored on the host
 [profile.release]

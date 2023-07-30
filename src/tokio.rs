@@ -1,9 +1,5 @@
-#[cfg(feature = "tokio")]
-pub mod tokio;
-
 use std::{
 	io,
-	io::{Read, Write},
 	time::{Duration, Instant},
 };
 
@@ -18,58 +14,27 @@ use serial_ws2812_shared::{
 	SET_STRIPS_MESSAGE,
 	UPDATE_MESSAGE,
 };
-use serialport::{SerialPort, SerialPortType};
-use thiserror::Error;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio_serial::{SerialPort, SerialPortBuilderExt, SerialPortType, SerialStream};
 use tracing::info;
 
-#[derive(Error, Debug)]
-pub enum Error {
-	#[error("serial to ws2812 device was not found")]
-	DeviceNotFound,
-
-	#[error("unexpected response {received:?}, expected {expected:?}")]
-	UnexpectedResponse { expected: String, received: String },
-
-	#[error("received no response from the device")]
-	NoResponse,
-
-	#[error("unable to send full message to device")]
-	IncompleteWrite,
-
-	#[error("serial port error: {0}")]
-	SerialPort(#[from] serialport::Error),
-
-	#[error("I/O error: {0}")]
-	IO(#[from] io::Error),
-}
-
-pub type Result<T> = std::result::Result<T, Error>;
-
-pub struct Config {
-	pub strips: usize,
-	pub leds:   usize,
-}
+use crate::{Config, Error, Result, WriteResult};
 
 pub struct SerialWs2812 {
 	config: Config,
-	port:   Box<dyn SerialPort>,
+	port:   SerialStream,
 
 	initialized: bool,
 }
-
-#[cfg(not(feature = "timings"))]
-pub type WriteResult = ();
-
-#[cfg(feature = "timings")]
-pub type WriteResult = (Duration, Duration);
 
 impl SerialWs2812 {
 	/// Create a new instance with the given serial device and config.
 	pub fn new(serial_device: String, config: Config) -> Result<Self> {
 		let baud_rate = 921_600;
 
-		let builder = serialport::new(serial_device, baud_rate).timeout(Duration::from_millis(50));
-		let port = builder.open()?;
+		let builder =
+			tokio_serial::new(serial_device, baud_rate).timeout(Duration::from_millis(50));
+		let port = builder.open_native_async()?;
 
 		Ok(Self {
 			config,
@@ -83,7 +48,7 @@ impl SerialWs2812 {
 	///
 	/// If more than one device is connected the returned device will be the first the OS lists.
 	pub fn find(config: Config) -> Result<Option<Self>> {
-		let ports = serialport::available_ports()?;
+		let ports = tokio_serial::available_ports()?;
 		let mut serial_device = None;
 
 		for p in ports {
@@ -103,7 +68,7 @@ impl SerialWs2812 {
 		Ok(Some(Self::new(serial_device, config)?))
 	}
 
-	fn reset_to_command(&mut self) -> Result<()> {
+	async fn reset_to_command(&mut self) -> Result<()> {
 		let mut buffer = [0u8; DEVICE_MESSAGE_TYPE_LEN * 4];
 
 		let mut has_printed = 0;
@@ -113,7 +78,7 @@ impl SerialWs2812 {
 		self.port.set_timeout(Duration::from_millis(10))?;
 
 		loop {
-			let res = self.port.read(&mut buffer);
+			let res = self.port.read(&mut buffer).await;
 			let read_bytes = match res {
 				Ok(n) => n,
 				Err(e) if e.kind() == io::ErrorKind::TimedOut => {
@@ -124,9 +89,9 @@ impl SerialWs2812 {
 
 					counter += 1;
 					if counter < 8 {
-						self.port.write_all(&[0u8])?;
+						self.port.write_all(&[0u8]).await?;
 					} else {
-						self.port.write_all(&[0u8; 32])?;
+						self.port.write_all(&[0u8; 32]).await?;
 					}
 
 					continue;
@@ -152,45 +117,47 @@ impl SerialWs2812 {
 	}
 
 	/// Sets the configuration for the instance.
-	pub fn set_config(&mut self, config: Config) -> Result<()> {
+	pub async fn set_config(&mut self, config: Config) -> Result<()> {
 		self.config = config;
-		self.configure()
+		self.configure().await
 	}
 
-	pub fn configure(&mut self) -> Result<()> {
+	pub async fn configure(&mut self) -> Result<()> {
 		if !self.initialized {
-			self.reset_to_command()?;
+			self.reset_to_command().await?;
 			self.initialized = true;
 		}
 
 		self.send_command(
 			SET_STRIPS_MESSAGE,
 			&u32::to_le_bytes(self.config.strips as u32),
-		)?;
-		self.send_command(SET_LEDS_MESSAGE, &u32::to_le_bytes(self.config.leds as u32))?;
+		)
+		.await?;
+		self.send_command(SET_LEDS_MESSAGE, &u32::to_le_bytes(self.config.leds as u32))
+			.await?;
 
 		Ok(())
 	}
 
 	/// Send all bytes to the microcontroller, the length must be the configured amount of leds * strips * 3.
-	pub fn send_leds(&mut self, leds: &[u8]) -> Result<WriteResult> {
+	pub async fn send_leds(&mut self, leds: &[u8]) -> Result<WriteResult> {
 		if !self.initialized {
-			self.configure()?;
+			self.configure().await?;
 		}
 
-		self.send_command(UPDATE_MESSAGE, leds)
+		self.send_command(UPDATE_MESSAGE, leds).await
 	}
 
-	fn send_command(&mut self, command: &[u8], data: &[u8]) -> Result<WriteResult> {
+	async fn send_command(&mut self, command: &[u8], data: &[u8]) -> Result<WriteResult> {
 		let mut output = [0u8; DEVICE_MESSAGE_TYPE_LEN];
 
 		#[cfg(feature = "timings")]
 		let command_start = Instant::now();
 
-		if self.serial_write(command)? != command.len() {
+		if self.serial_write(command).await? != command.len() {
 			return Err(Error::IncompleteWrite);
 		}
-		if self.port.read(&mut output)? != 1 {
+		if self.port.read(&mut output).await? != 1 {
 			return Err(Error::NoResponse);
 		}
 		if &output != DEVICE_PARTIAL_MESSAGE {
@@ -203,10 +170,10 @@ impl SerialWs2812 {
 		#[cfg(feature = "timings")]
 		let data_start = Instant::now();
 
-		if self.serial_write(data)? != data.len() {
+		if self.serial_write(data).await? != data.len() {
 			return Err(Error::IncompleteWrite);
 		}
-		if self.port.read(&mut output)? != 1 {
+		if self.port.read(&mut output).await? != 1 {
 			return Err(Error::NoResponse);
 		}
 		if &output != DEVICE_OK_MESSAGE {
@@ -226,8 +193,8 @@ impl SerialWs2812 {
 		Ok(())
 	}
 
-	fn serial_write(&mut self, buffer: &[u8]) -> Result<usize> {
-		match self.port.write_all(buffer) {
+	async fn serial_write(&mut self, buffer: &[u8]) -> Result<usize> {
+		match self.port.write_all(buffer).await {
 			Ok(_) => Ok(buffer.len()),
 			// Err(ref e) if e.kind() == io::ErrorKind::TimedOut => {
 			// 	println!("WARNING: serial timeout");
