@@ -1,12 +1,15 @@
 #[cfg(feature = "tokio")]
 pub mod tokio;
 
+#[cfg(feature = "timings")]
+use std::time::Instant;
 use std::{
 	io,
 	io::{Read, Write},
-	time::{Duration, Instant},
+	time::Duration,
 };
 
+pub use serial_ws2812_shared::{BYTES_PER_LED, MAX_BUFFER_SIZE, MAX_LEDS_PER_STRIP, MAX_STRIPS};
 use serial_ws2812_shared::{
 	DEVICE_ERROR_MESSAGE,
 	DEVICE_INIT_MESSAGE,

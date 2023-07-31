@@ -1,7 +1,6 @@
-use std::{
-	io,
-	time::{Duration, Instant},
-};
+#[cfg(feature = "timings")]
+use std::time::Instant;
+use std::{io, time::Duration};
 
 use serial_ws2812_shared::{
 	DEVICE_ERROR_MESSAGE,
