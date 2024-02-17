@@ -35,6 +35,10 @@ bind_interrupts!(struct Irqs {
 	PIO0_IRQ_0 => PioInterruptHandler<PIO0>;
 });
 
+const FLASH_JEDEC_BYTES: usize = 4;
+const FLASH_ID_BYTES: usize = 16;
+const ID_BYTES: usize = FLASH_JEDEC_BYTES + FLASH_ID_BYTES;
+
 #[cortex_m_rt::entry]
 fn main() -> ! {
 	static mut CORE1_STACK: Stack<4096> = Stack::new();
@@ -53,6 +57,15 @@ fn main() -> ! {
 	});
 
 	let p = embassy_rp::init(config);
+
+	let mut flash = embassy_rp::flash::Flash::<_, 0>::new(p.FLASH);
+
+	let mut id = [0; ID_BYTES];
+
+	let jedec = flash.jedec_id().unwrap();
+	id[0..FLASH_JEDEC_BYTES].copy_from_slice(&jedec.to_ne_bytes());
+
+	flash.unique_id(&mut id[FLASH_JEDEC_BYTES..]).unwrap();
 
 	let outputs = (p.PIN_0, p.PIN_1, p.PIN_2, p.PIN_3, p.PIN_4, p.PIN_5, p.PIN_6, p.PIN_7);
 
@@ -73,6 +86,6 @@ fn main() -> ! {
 
 	let executor0 = EXECUTOR0.init(Executor::new());
 	executor0.run(|spawner| {
-		unwrap!(spawner.spawn(usb_serial_task(driver)));
+		unwrap!(spawner.spawn(usb_serial_task(driver, id)));
 	});
 }

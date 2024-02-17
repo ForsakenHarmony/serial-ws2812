@@ -22,4 +22,10 @@ pub const DEVICE_ERROR_MESSAGE: &[u8; DEVICE_MESSAGE_TYPE_LEN] = b"e";
 pub const DEVICE_PARTIAL_MESSAGE: &[u8; DEVICE_MESSAGE_TYPE_LEN] = b"p";
 pub const DEVICE_OK_MESSAGE: &[u8; DEVICE_MESSAGE_TYPE_LEN] = b"k";
 
+// https://pid.codes/1209/F0F0/
+// https://github.com/pidcodes/pidcodes.github.com/blob/9931091431d79f8e755b02fa1e34d4c279204a92/1209/F0F0/index.md
+pub const DEVICE_VENDOR_ID: u16 = 0x1209;
+pub const DEVICE_PRODUCT_ID: u16 = 0xF0F0;
+
 pub const DEVICE_PRODUCT_NAME: &str = "Serial WS2812";
+pub const DEVICE_MANUFACTURER: &str = "hrmny.sh";

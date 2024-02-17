@@ -1,3 +1,5 @@
+use core::str::from_utf8;
+
 use bytemuck::cast_slice;
 use defmt::info;
 use embassy_rp::{
@@ -9,9 +11,12 @@ use futures::future;
 use serial_ws2812_shared::{
 	BYTES_PER_LED,
 	DEVICE_ERROR_MESSAGE,
+	DEVICE_MANUFACTURER,
 	DEVICE_OK_MESSAGE,
 	DEVICE_PARTIAL_MESSAGE,
+	DEVICE_PRODUCT_ID,
 	DEVICE_PRODUCT_NAME,
+	DEVICE_VENDOR_ID,
 	MAX_BUFFER_SIZE,
 	MAX_LEDS_PER_STRIP,
 	MAX_STRIPS,
@@ -22,19 +27,30 @@ use serial_ws2812_shared::{
 	UPDATE_MESSAGE,
 };
 
-use crate::globals::{DISPLAY_CHANNEL, RETURN_CHANNEL};
+use crate::{
+	globals::{DISPLAY_CHANNEL, RETURN_CHANNEL},
+	ID_BYTES,
+};
 
 const PACKET_LEN: u8 = 64;
 
 #[embassy_executor::task]
-pub async fn usb_serial_task(driver: Driver<'static, USB>) {
+pub async fn usb_serial_task(driver: Driver<'static, USB>, id: [u8; ID_BYTES]) {
 	info!("Hello from USB task on core 0");
 
+	let mut serial = [0; ID_BYTES * 2];
+	for (i, byte) in id.into_iter().enumerate() {
+		for j in 0..2 {
+			let nibble = (byte >> (4 - 4 * (j & 1))) & 0xf;
+			serial[i * 2 + j] = if nibble < 10 { nibble + b'0' } else { nibble + b'A' - 10 };
+		}
+	}
+
 	// Create embassy-usb Config
-	let mut config = embassy_usb::Config::new(0xc0de, 0xcafe);
-	config.manufacturer = Some("hrmny");
+	let mut config = embassy_usb::Config::new(DEVICE_VENDOR_ID, DEVICE_PRODUCT_ID);
+	config.manufacturer = Some(DEVICE_MANUFACTURER);
 	config.product = Some(DEVICE_PRODUCT_NAME);
-	config.serial_number = Some("1");
+	config.serial_number = Some(from_utf8(&serial).unwrap());
 	config.max_power = 100;
 	config.max_packet_size_0 = PACKET_LEN;
 
@@ -50,7 +66,7 @@ pub async fn usb_serial_task(driver: Driver<'static, USB>) {
 	let mut device_descriptor = [0; 256];
 	let mut config_descriptor = [0; 256];
 	let mut bos_descriptor = [0; 256];
-	let mut control_buf = [0; 64];
+	let mut control_buf = [0; 128];
 
 	let mut state = cdc_acm::State::new();
 

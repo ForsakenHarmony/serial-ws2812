@@ -16,7 +16,8 @@ use serial_ws2812_shared::{
 	DEVICE_MESSAGE_TYPE_LEN,
 	DEVICE_OK_MESSAGE,
 	DEVICE_PARTIAL_MESSAGE,
-	DEVICE_PRODUCT_NAME,
+	DEVICE_PRODUCT_ID,
+	DEVICE_VENDOR_ID,
 	SET_LEDS_MESSAGE,
 	SET_STRIPS_MESSAGE,
 	UPDATE_MESSAGE,
@@ -91,9 +92,7 @@ impl SerialWs2812 {
 
 		for p in ports {
 			if let SerialPortType::UsbPort(usb) = p.port_type {
-				if usb.product == Some(DEVICE_PRODUCT_NAME.to_string())
-					|| usb.product == Some(DEVICE_PRODUCT_NAME.replace(' ', "_"))
-				{
+				if usb.vid == DEVICE_VENDOR_ID || usb.pid == DEVICE_PRODUCT_ID {
 					serial_device = Some(p.port_name);
 				}
 			}
