@@ -9,6 +9,8 @@ mod ws2812;
 extern crate defmt_rtt;
 extern crate panic_probe;
 
+use core::{mem::size_of, ptr::addr_of_mut};
+
 use bytemuck::cast;
 use defmt::*;
 use embassy_executor::Executor;
@@ -16,6 +18,7 @@ use embassy_rp::{
 	bind_interrupts,
 	clocks::PllConfig,
 	config::Config,
+	flash::Blocking,
 	multicore::{spawn_core1, Stack},
 	peripherals::{PIO0, USB},
 	pio::InterruptHandler as PioInterruptHandler,
@@ -35,16 +38,17 @@ bind_interrupts!(struct Irqs {
 	PIO0_IRQ_0 => PioInterruptHandler<PIO0>;
 });
 
-const FLASH_JEDEC_BYTES: usize = 4;
+const FLASH_JEDEC_BYTES: usize = size_of::<u32>();
 const FLASH_ID_BYTES: usize = 16;
 const ID_BYTES: usize = FLASH_JEDEC_BYTES + FLASH_ID_BYTES;
+const FLASH_SIZE: usize = 2 * 1024 * 1024;
+
+static mut CORE1_STACK: Stack<4096> = Stack::new();
+static EXECUTOR0: StaticCell<Executor> = StaticCell::new();
+static EXECUTOR1: StaticCell<Executor> = StaticCell::new();
 
 #[cortex_m_rt::entry]
 fn main() -> ! {
-	static mut CORE1_STACK: Stack<4096> = Stack::new();
-	static EXECUTOR0: StaticCell<Executor> = StaticCell::new();
-	static EXECUTOR1: StaticCell<Executor> = StaticCell::new();
-
 	let mut config = Config::default();
 	let xosc = config.clocks.xosc.as_mut().expect("this should have been configured");
 
@@ -58,14 +62,13 @@ fn main() -> ! {
 
 	let p = embassy_rp::init(config);
 
-	let mut flash = embassy_rp::flash::Flash::<_, 0>::new(p.FLASH);
+	let mut flash = embassy_rp::flash::Flash::<_, Blocking, FLASH_SIZE>::new_blocking(p.FLASH);
+	let jedec = flash.blocking_jedec_id().unwrap();
 
 	let mut id = [0; ID_BYTES];
 
-	let jedec = flash.jedec_id().unwrap();
 	id[0..FLASH_JEDEC_BYTES].copy_from_slice(&jedec.to_ne_bytes());
-
-	flash.unique_id(&mut id[FLASH_JEDEC_BYTES..]).unwrap();
+	flash.blocking_unique_id(&mut id[FLASH_JEDEC_BYTES..]).unwrap();
 
 	let outputs = (p.PIN_0, p.PIN_1, p.PIN_2, p.PIN_3, p.PIN_4, p.PIN_5, p.PIN_6, p.PIN_7);
 
@@ -76,7 +79,8 @@ fn main() -> ! {
 
 	let pio = p.PIO0;
 
-	spawn_core1(p.CORE1, CORE1_STACK, move || {
+	// FIXME: taking a mut reference of a static is UB
+	spawn_core1(p.CORE1, unsafe { &mut *addr_of_mut!(CORE1_STACK) }, move || {
 		let executor1 = EXECUTOR1.init(Executor::new());
 		executor1.run(|spawner| unwrap!(spawner.spawn(parallel_led_task(pio, outputs))));
 	});

@@ -22,7 +22,7 @@ embassy-usb = { git = "https://github.com/embassy-rs/embassy.git" }
 serial-ws2812-shared = { path = "../shared" }
 
 embassy-embedded-hal = { version = "0.1.0", features = ["defmt"] }
-embassy-executor = { version = "0.2.0", features = [
+embassy-executor = { version = "0.5.0", features = [
   "arch-cortex-m",
   "executor-thread",
   "executor-interrupt",
@@ -32,18 +32,18 @@ embassy-executor = { version = "0.2.0", features = [
 ] }
 embassy-rp = { version = "0.1.0", features = [
   "defmt",
-  "unstable-traits",
-  "nightly",
+#  "unstable-traits",
+#  "nightly",
   "unstable-pac",
   "time-driver",
   "critical-section-impl",
 ] }
-embassy-sync = { version = "0.2.0", features = ["defmt"] }
-embassy-time = { version = "0.1.0", features = [
+embassy-sync = { version = "0.5.0", features = ["defmt"] }
+embassy-time = { version = "0.3.0", features = [
   "defmt",
   "defmt-timestamp-uptime",
-  "nightly",
-  "unstable-traits",
+#  "nightly",
+#  "unstable-traits",
   #  "tick-hz-32_768",
 ] }
 embassy-usb = { version = "0.1.0", features = ["defmt"] }

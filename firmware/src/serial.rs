@@ -76,6 +76,7 @@ pub async fn usb_serial_task(driver: Driver<'static, USB>, id: [u8; ID_BYTES]) {
 		&mut device_descriptor,
 		&mut config_descriptor,
 		&mut bos_descriptor,
+		&mut [], // no msos descriptors
 		&mut control_buf,
 	);
 
@@ -209,7 +210,7 @@ async fn read_serial<'d, T: Instance + 'd>(
 				class.write_packet(DEVICE_OK_MESSAGE).await?;
 
 				info!("update command data received, waiting for data pointer");
-				let leds = RETURN_CHANNEL.recv().await;
+				let leds = RETURN_CHANNEL.receive().await;
 				info!("data pointer received");
 
 				let data = &buf[MESSAGE_TYPE_LEN..];

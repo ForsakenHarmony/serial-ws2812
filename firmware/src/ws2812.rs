@@ -3,7 +3,6 @@ use defmt::*;
 use embassy_rp::{
 	peripherals::{PIN_0, PIN_1, PIN_2, PIN_3, PIN_4, PIN_5, PIN_6, PIN_7, PIO0},
 	pio::{Config, Direction, FifoJoin, Instance, Pio, ShiftConfig, ShiftDirection, StateMachine},
-	relocate::RelocatedProgram,
 };
 use embassy_time::{Duration, Instant, Timer};
 use fixed_macro::fixed;
@@ -31,7 +30,7 @@ pub async fn parallel_led_task(pio: PIO0, outputs: OutputPins) {
 	let mut last_write = Instant::now();
 	loop {
 		info!("ws2812: waiting for data pointer");
-		let (num_leds, leds) = DISPLAY_CHANNEL.recv().await;
+		let (num_leds, leds) = DISPLAY_CHANNEL.receive().await;
 
 		// make sure we wait long enough for the ws2812 chips to reset
 		let diff = Instant::now() - last_write;
@@ -148,10 +147,8 @@ fn setup_ws2812_pio<'a>(pio: PIO0, outputs: OutputPins) -> StateMachine<'a, PIO0
 
 	const CYCLES_PER_BIT: u32 = 1 + 1 + 3 + 4 + 1;
 
-	let relocated = RelocatedProgram::new(&prg.program);
-
 	let mut cfg = Config::default();
-	cfg.use_program(&common.load_program(&relocated), &[]);
+	cfg.use_program(&common.load_program(&prg.program), &[]);
 
 	// sys clk freq: overclocked in main.rs
 	let clock_freq = fixed!(266_000: U24F8);
