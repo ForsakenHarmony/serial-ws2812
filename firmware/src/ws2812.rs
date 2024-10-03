@@ -84,7 +84,7 @@ async fn write_data_direct<PIO: Instance>(
 		}
 
 		while byte_idx - written_bytes >= 4 && !tx.full() {
-			tx.push(u32::from_le_bytes([
+			tx.push(u32::from_be_bytes([
 				out[written_bytes],
 				out[written_bytes + 1],
 				out[written_bytes + 2],
@@ -101,7 +101,7 @@ async fn write_data_direct<PIO: Instance>(
 	}
 
 	while total_to_write - written_bytes >= 4 {
-		if tx.try_push(u32::from_le_bytes([
+		if tx.try_push(u32::from_be_bytes([
 			out[written_bytes],
 			out[written_bytes + 1],
 			out[written_bytes + 2],
